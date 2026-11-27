@@ -11,7 +11,6 @@ from ai_werewolf.engine import (
     check_winner,
     find_seer,
     kill_player,
-    public_role_of_dead,
     resolve_night_kill,
     role_label,
     tally_votes,
@@ -20,7 +19,7 @@ from ai_werewolf.engine import (
 from ai_werewolf.models import Phase, Speech, VoteRecord
 from ai_werewolf.state import GameState
 
-
+# 狼人行动
 def night_werewolf_node(state: GameState) -> dict:
     choice = choose_werewolf_kill(state)
     return {
@@ -30,14 +29,14 @@ def night_werewolf_node(state: GameState) -> dict:
         "public_log": [f"=== 第 {state['day']} 夜 ===", "狼人正在行动…"],
     }
 
-
+# 预言家行动
 def night_seer_node(state: GameState) -> dict:
     seer = find_seer(state["players"])
     if seer is None or not seer.alive:
+        # 不向公开日志暴露预言家是否仍存活
         return {
             "phase": Phase.NIGHT_SEER.value,
             "pending_seer_check": None,
-            "public_log": ["预言家已出局，本夜无查验。"],
         }
 
     choice = choose_seer_check(state, seer.id)
@@ -49,15 +48,12 @@ def night_seer_node(state: GameState) -> dict:
         "seer_log": [
             f"第{state['day']}夜查验玩家{choice.target_id} → {camp}（{choice.reason}）"
         ],
-        "public_log": ["预言家正在查验…"],
     }
 
-
+# 夜间行动结算
 def resolve_night_node(state: GameState) -> dict:
     pending = state.get("pending_kill")
     players, log = resolve_night_kill(state["players"], pending)
-    if pending and pending in players and not players[pending].alive:
-        log = f"{log.rstrip('。')}，身份：{public_role_of_dead(players[pending])}。"
     return {
         "players": players,
         "phase": Phase.RESOLVE_NIGHT.value,
@@ -66,7 +62,7 @@ def resolve_night_node(state: GameState) -> dict:
         "public_log": [log],
     }
 
-
+# 准备白天发言
 def prepare_day_node(state: GameState) -> dict:
     queue = alive_ids(state["players"])
     return {
@@ -79,7 +75,7 @@ def prepare_day_node(state: GameState) -> dict:
         "public_log": [f"=== 第 {state['day']} 天白天：按座位依次发言 ==="],
     }
 
-
+# 白天发言
 def speak_node(state: GameState) -> dict:
     speaker = state["current_speaker"]
     if speaker is None:
@@ -95,7 +91,7 @@ def speak_node(state: GameState) -> dict:
         "current_speaker": next_speaker,
     }
 
-
+# 准备投票
 def prepare_vote_node(state: GameState) -> dict:
     queue = alive_ids(state["players"])
     return {
@@ -106,7 +102,7 @@ def prepare_vote_node(state: GameState) -> dict:
         "public_log": ["=== 开始投票 ==="],
     }
 
-
+# 投票
 def vote_node(state: GameState) -> dict:
     voter = state["current_voter"]
     if voter is None:
@@ -126,15 +122,15 @@ def vote_node(state: GameState) -> dict:
         "current_voter": next_voter,
     }
 
-
+# 投票结算
 def resolve_vote_node(state: GameState) -> dict:
     victim, summary = tally_votes(state["players"], state.get("votes") or {})
     players = state["players"]
     logs = [summary]
     if victim:
         players = kill_player(players, victim)
-        dead = players[victim]
-        logs.append(f"玩家{victim} 出局，身份：{public_role_of_dead(dead)}。")
+        # 死亡只公布号数，身份仅在终局复盘揭晓
+        logs.append(f"玩家{victim} 出局。")
     return {
         "players": players,
         "phase": Phase.RESOLVE_VOTE.value,
@@ -142,7 +138,7 @@ def resolve_vote_node(state: GameState) -> dict:
         "votes": {},
     }
 
-
+# 检查胜负
 def _end_if_winner(state: GameState) -> dict | None:
     winner = check_winner(state["players"])
     if not winner:
@@ -154,7 +150,7 @@ def _end_if_winner(state: GameState) -> dict | None:
         "public_log": [f"=== 游戏结束：{label}胜利 ==="],
     }
 
-
+# 检查夜间胜负
 def check_win_after_night_node(state: GameState) -> dict:
     ended = _end_if_winner(state)
     if ended:
@@ -165,7 +161,7 @@ def check_win_after_night_node(state: GameState) -> dict:
         "public_log": [f"第 {state['day']} 夜结束，进入白天。"],
     }
 
-
+# 检查投票胜负
 def check_win_after_vote_node(state: GameState) -> dict:
     ended = _end_if_winner(state)
     if ended:
@@ -178,7 +174,7 @@ def check_win_after_vote_node(state: GameState) -> dict:
         "public_log": [f"胜负未分，进入第 {nxt} 夜。"],
     }
 
-
+# 揭晓身份
 def reveal_roles_line(state: GameState) -> str:
     parts = [
         f"{p.id}号={role_label(p.role)}{'💀' if not p.alive else ''}"

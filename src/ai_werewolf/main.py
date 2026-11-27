@@ -15,7 +15,7 @@ def initial_state(*, seed: int | None, dry_run: bool) -> dict:
         "players": players,
         "phase": Phase.SETUP.value,
         "day": 1,
-        "public_log": ["游戏开始：6人局（2狼 / 1预言家 / 3村民）。死亡公开身份。"],
+        "public_log": ["游戏开始：6人局（2狼 / 1预言家 / 3村民）。死亡只公布号数，身份终局揭晓。"],
         "speeches": [],
         "seer_log": [],
         "wolf_log": [],
@@ -32,23 +32,42 @@ def initial_state(*, seed: int | None, dry_run: bool) -> dict:
     }
 
 
-def print_result(final: dict) -> None:
-    print("\n========== 公开战报 ==========")
-    for line in final["public_log"]:
-        print(line)
-    print("\n========== 复盘 ==========")
-    print(reveal_roles_line(final))
+def _emit(line: str = "") -> None:
+    print(line, flush=True)
+
+
+def print_recap(final: dict) -> None:
+    _emit("\n========== 复盘 ==========")
+    _emit(reveal_roles_line(final))
     if final.get("seer_log"):
-        print("预言家私有：", " | ".join(final["seer_log"]))
+        _emit("预言家私有：" + " | ".join(final["seer_log"]))
     if final.get("wolf_log"):
-        print("狼人私有：", " | ".join(final["wolf_log"]))
+        _emit("狼人私有：" + " | ".join(final["wolf_log"]))
     winner = final.get("winner")
     if winner == "werewolf":
-        print("结果：狼人胜利")
+        _emit("结果：狼人胜利")
     elif winner == "villager":
-        print("结果：好人胜利")
+        _emit("结果：好人胜利")
     else:
-        print("结果：未分胜负（异常结束）")
+        _emit("结果：未分胜负（异常结束）")
+
+
+def run_stream(app, state: dict) -> dict:
+    """按节点推进并即时刷出公开日志。"""
+    _emit("\n========== 对局进行中 ==========")
+    for line in state.get("public_log") or []:
+        _emit(line)
+
+    printed = len(state.get("public_log") or [])
+    final = state
+    config = {"recursion_limit": 200}
+    for values in app.stream(state, config=config, stream_mode="values"):
+        final = values
+        log = values.get("public_log") or []
+        for line in log[printed:]:
+            _emit(line)
+        printed = len(log)
+    return final
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -67,14 +86,13 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     state = initial_state(seed=args.seed, dry_run=args.dry_run)
-    print("开局身份（调试可见，正式对局应对观众隐藏）：")
+    _emit("开局身份（调试可见，正式对局应对观众隐藏）：")
     for p in state["players"].values():
-        print(f"  {p.id}号 {p.name}: {role_label(p.role)}")
+        _emit(f"  {p.id}号 {p.name}: {role_label(p.role)}")
 
     app = build_graph()
-    # 防止异常死循环；正常 6 人局远小于此
-    final = app.invoke(state, config={"recursion_limit": 200})
-    print_result(final)
+    final = run_stream(app, state)
+    print_recap(final)
 
     if args.dump_json:
         summary = {
@@ -86,7 +104,7 @@ def main(argv: list[str] | None = None) -> None:
                 for pid, p in final["players"].items()
             },
         }
-        print("\n" + json.dumps(summary, ensure_ascii=False, indent=2))
+        _emit("\n" + json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

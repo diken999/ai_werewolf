@@ -139,8 +139,3 @@ def role_label(role: Role) -> str:
         Role.SEER: "预言家",
         Role.VILLAGER: "村民",
     }[role]
-
-
-def public_role_of_dead(player: Player) -> str:
-    """死亡后公开身份（最小规则：死亡即爆身份，便于复盘）。"""
-    return role_label(player.role)

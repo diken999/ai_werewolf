@@ -18,23 +18,23 @@ from ai_werewolf.nodes import (
 )
 from ai_werewolf.state import GameState
 
-
+# 判断是否继续发言
 def _route_after_speak(state: GameState) -> Literal["speak", "prepare_vote"]:
     return "speak" if state.get("current_speaker") else "prepare_vote"
 
-
+# 判断是否继续投票
 def _route_after_vote(state: GameState) -> Literal["vote", "resolve_vote"]:
     return "vote" if state.get("current_voter") else "resolve_vote"
 
-
+# 判断是否继续夜间行动
 def _route_after_check(state: GameState) -> Literal["night_werewolf", "__end__"]:
     return END if state.get("winner") else "night_werewolf"
 
-
+# 判断是否继续白天发言
 def _route_after_night_check(state: GameState) -> Literal["prepare_day", "__end__"]:
     return END if state.get("winner") else "prepare_day"
 
-
+# 构建游戏图
 def build_graph():
     """
     最小闭环：

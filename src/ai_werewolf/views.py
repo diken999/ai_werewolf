@@ -24,6 +24,7 @@ def build_player_view(state: GameState, player_id: str) -> str:
         f"你是 {me.name}（id={me.id}），身份：{role_label(me.role)}。",
         f"当前是第 {state['day']} 天，阶段：{state['phase']}。",
         f"存活玩家：{_alive_summary(players)}。",
+        "规则：死者只公布号数，身份不公开（除非你自己验到/本就知情）。",
         "",
         "【公开事件】",
         *(state["public_log"][-12:] or ["（暂无）"]),
@@ -49,5 +50,6 @@ def build_player_view(state: GameState, player_id: str) -> str:
         ]
     else:
         lines += ["", "【注意】你看不到任何人的隐藏身份与夜间行动细节。"]
+
 
     return "\n".join(lines)

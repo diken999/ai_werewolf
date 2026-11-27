@@ -19,7 +19,7 @@ def _rng(state: GameState) -> random.Random:
     # dry-run 下可复现一点：用天数+存活数做种子
     return random.Random(state["day"] * 100 + len(alive_ids(state["players"])))
 
-
+# 狼人选择击杀目标
 def choose_werewolf_kill(state: GameState) -> KillChoice:
     players = state["players"]
     wolves = set(wolf_ids(players))
@@ -43,7 +43,7 @@ def choose_werewolf_kill(state: GameState) -> KillChoice:
         result = KillChoice(target_id=_rng(state).choice(candidates), reason="非法目标，改随机")
     return result
 
-
+# 预言家选择查验目标
 def choose_seer_check(state: GameState, seer_id: str) -> SeerCheckChoice:
     players = state["players"]
     candidates = [pid for pid in alive_ids(players) if pid != seer_id]
@@ -63,7 +63,7 @@ def choose_seer_check(state: GameState, seer_id: str) -> SeerCheckChoice:
         )
     return result
 
-
+# 白天发言
 def choose_speech(state: GameState, player_id: str) -> SpeechChoice:
     if state.get("dry_run"):
         return SpeechChoice(
@@ -85,7 +85,7 @@ def choose_speech(state: GameState, player_id: str) -> SpeechChoice:
         user=f"{view}\n\n请发表今天的公开发言。",
     )
 
-
+# 投票
 def choose_vote(state: GameState, voter_id: str) -> VoteChoice:
     players = state["players"]
     candidates = [pid for pid in alive_ids(players) if pid != voter_id]
